@@ -17,7 +17,8 @@ _led_report(bits: int) -> Sequence[int]
     def __init__(self) -> None:
         self._dev: hid.Device | None = None
         self._last_bits: int = -1    # cache to avoid spamming
-
+        self._min_percent: float = 4.0
+        self._max_percent: float = 84.0
 
     def connect(self) -> bool:
         for pid in self.PRODUCT_IDS:
@@ -36,6 +37,10 @@ _led_report(bits: int) -> Sequence[int]
         self._last_bits = bits
         self._dev.write(bytes(self._led_report(bits)))
 
+    def set_percent_limits(self, minpercent: float, maxpercent:float) -> None:
+        self._min_percent = minpercent
+        self._max_percent = maxpercent
+
     def _post_connect_setup(self) -> None:
         pass
 
@@ -44,13 +49,12 @@ _led_report(bits: int) -> Sequence[int]
 
     # ---------- helpers ----------
 
-    @staticmethod
-    def _percent_to_bits(pct: float) -> int:
+    def _percent_to_bits(self, pct: float) -> int:
         return (
-            0b11111 if pct > 84
-            else 0b01111 if pct > 69
-            else 0b00111 if pct > 39
-            else 0b00011 if pct > 19
-            else 0b00001 if pct >  4
+            0b11111 if pct > self._max_percent
+            else 0b01111 if pct > self._min_percent + 3.0 *((self._max_percent - self._min_percent) / 4.0)
+            else 0b00111 if pct > self._min_percent + 2.0 * ((self._max_percent - self._min_percent) / 4.0)
+            else 0b00011 if pct > self._min_percent + ((self._max_percent - self._min_percent) / 4.0)
+            else 0b00001 if pct > self._min_percent
             else 0
         )

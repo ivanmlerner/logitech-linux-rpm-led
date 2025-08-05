@@ -20,7 +20,6 @@ F1_2023 = 2
 DIRT_RALLY_2_0 = 3
 AMS_2 = 4
 
-
 class Widget(Gtk.Box):
     __gtype_name__ = 'Widget'
 
@@ -76,6 +75,28 @@ class WheelRPMWindow(Gtk.ApplicationWindow):
         combo = Gtk.DropDown(model=self.model_widget, factory=factory_widget)
         inner_box.append(combo)
 
+        # Create two sliders
+        self.min_rpm_percent = Gtk.Scale.new_with_range(orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=1)
+        self.max_rpm_percent = Gtk.Scale.new_with_range(orientation=Gtk.Orientation.HORIZONTAL, min=0, max=100, step=1)
+        self.min_rpm_percent.do_change_value(self.min_rpm_percent, scroll=Gtk.ScrollType.JUMP, new_value=4)
+        self.max_rpm_percent.do_change_value(self.max_rpm_percent, scroll=Gtk.ScrollType.JUMP, new_value=84)
+        self.min_rpm_percent.set_digits(digits=0)
+        self.max_rpm_percent.set_digits(digits=0)
+        self.min_rpm_percent.set_draw_value(draw_value=True)
+        self.max_rpm_percent.set_draw_value(draw_value=True)
+
+        min_slider_title = Gtk.Label()
+        min_slider_title.set_text("First led RPM percent:")
+        self.min_rpm_percent.connect("value-changed", self._on_min_percent_change)
+        box.append(min_slider_title)
+        box.append(self.min_rpm_percent)
+
+        max_slider_title = Gtk.Label()
+        max_slider_title.set_text("Last led RPM percent:")
+        self.max_rpm_percent.connect("value-changed", self._on_max_percent_change)
+        box.append(max_slider_title)
+        box.append(self.max_rpm_percent)
+
         self.wheel = find_wheel()
         if not self.wheel:
             print("No supported Logitech wheel found.")
@@ -111,6 +132,7 @@ class WheelRPMWindow(Gtk.ApplicationWindow):
 
         if not self.running:
             self.running = True
+            self.wheel.set_percent_limits(self.min_rpm_percent.get_value(), self.max_rpm_percent.get_value())
             self.thread = multiprocessing.Process(target=self.game_handling_loop, args=(game, self.wheel, choice))
             self.thread.daemon = True
             self.thread.start()
@@ -155,6 +177,17 @@ class WheelRPMWindow(Gtk.ApplicationWindow):
         image.set_from_file(widget.image)
         label.set_text(widget.name)
 
+    def _on_min_percent_change(self, data):
+        value = self.min_rpm_percent.get_value()
+        max_value = self.max_rpm_percent.get_value()
+        if value >= max_value:
+            self.min_rpm_percent.set_value(max_value - 1.0)
+
+    def _on_max_percent_change(self, data):
+        value = self.max_rpm_percent.get_value()
+        min_value = self.min_rpm_percent.get_value()
+        if value <= min_value:
+            self.max_rpm_percent.set_value(min_value + 1.0)
 
 class RpmWheelApp(Adw.Application):
     def __init__(self, **kwargs):
